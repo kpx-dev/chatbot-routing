@@ -4,6 +4,7 @@ import uuid
 import os
 import boto3
 import json
+import time
 from datetime import datetime
 from botocore.exceptions import ClientError
 from datetime import date
@@ -44,15 +45,21 @@ def router(prompt):
 
 
 if __name__ == "__main__":
+    start_time = time.time()
+
     # Haiku
-    # 0.06s
-    router("Is this a scam? Congratulation, you've won $10M, give me your bank info.")
+    # 5.12s
+    # router("Is this a scam? Congratulation, you've won $10M, give me your bank info.")
     
-    # 0.07s
+    # 8.1s
     # router("what product can help me with scam protection?")
 
-    # 0.07s
+    # 5.5s
     # router("I need to chat with a live support agent")
     
-    # 0.07s
-    # router("How many days in a year?")
+    # 2.96s
+    router("How many days in a year?")
+
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print(f"The function took {execution_time:.6f} seconds to execute.")
