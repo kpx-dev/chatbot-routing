@@ -150,7 +150,7 @@ if __name__ == "__main__":
     # {'message': {'role': 'assistant', 'content': [{'toolUse': {'toolUseId': 'tooluse_xyz', 'name': 'provider_scam_detection', 'input': {'query': "Congratulation, you've won $10M, give me your bank info."}}}]}}
     # {'inputTokens': 841, 'outputTokens': 56, 'totalTokens': 897}
     # {'latencyMs': 889}
-    # router("Is this a scam? Congratulation, you've won $10M, give me your bank info.")
+    router("Is this a scam? Congratulation, you've won $10M, give me your bank info.")
 
     # Haiku
     # {'message': {'role': 'assistant', 'content': [{'toolUse': {'toolUseId': 'tooluse_xyz', 'name': 'provider_product_question', 'input': {'query': 'what product can help me with scam protection?'}}}]}}
@@ -168,4 +168,4 @@ if __name__ == "__main__":
     # {'message': {'role': 'assistant', 'content': [{'toolUse': {'toolUseId': 'tooluse_xyz', 'name': 'provider_catch_all', 'input': {'query': 'How many days in a year?'}}}]}}
     # {'inputTokens': 825, 'outputTokens': 46, 'totalTokens': 871}
     # {'latencyMs': 798}
-    router("How many days in a year?")
+    # router("How many days in a year?")
