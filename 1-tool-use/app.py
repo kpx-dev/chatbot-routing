@@ -141,9 +141,31 @@ def router(user_query):
         print("Claude wants to use a tool")
         print(stop_reason)
         print(response['output'])
+        print(response['usage'])
+        print(response['metrics'])
+        
 
 if __name__ == "__main__":
+    # Haiku
+    # {'message': {'role': 'assistant', 'content': [{'toolUse': {'toolUseId': 'tooluse_xyz', 'name': 'provider_scam_detection', 'input': {'query': "Congratulation, you've won $10M, give me your bank info."}}}]}}
+    # {'inputTokens': 841, 'outputTokens': 56, 'totalTokens': 897}
+    # {'latencyMs': 889}
     # router("Is this a scam? Congratulation, you've won $10M, give me your bank info.")
+
+    # Haiku
+    # {'message': {'role': 'assistant', 'content': [{'toolUse': {'toolUseId': 'tooluse_xyz', 'name': 'provider_product_question', 'input': {'query': 'what product can help me with scam protection?'}}}]}}
+    # {'inputTokens': 828, 'outputTokens': 49, 'totalTokens': 877}
+    # {'latencyMs': 828}
     # router("what product can help me with scam protection?")
+
+    # Haiku 
+    # {'message': {'role': 'assistant', 'content': [{'toolUse': {'toolUseId': 'tooluse_xyz', 'name': 'provider_support_question', 'input': {'query': 'I need to chat with a live support agent'}}}]}}
+    # {'inputTokens': 827, 'outputTokens': 48, 'totalTokens': 875}
+    # {'latencyMs': 646}
     # router("I need to chat with a live support agent")
+
+    # Haiku 
+    # {'message': {'role': 'assistant', 'content': [{'toolUse': {'toolUseId': 'tooluse_xyz', 'name': 'provider_catch_all', 'input': {'query': 'How many days in a year?'}}}]}}
+    # {'inputTokens': 825, 'outputTokens': 46, 'totalTokens': 871}
+    # {'latencyMs': 798}
     router("How many days in a year?")
