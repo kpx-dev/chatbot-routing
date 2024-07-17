@@ -1,4 +1,7 @@
+from dotenv import load_dotenv
+load_dotenv()
 import boto3
+import os
 import json
 from datetime import datetime
 from botocore.exceptions import ClientError
@@ -106,8 +109,34 @@ toolConfig['tools'].append(provider_product_question_schema)
 toolConfig['tools'].append(provider_support_question_schema)
 toolConfig['tools'].append(provider_catch_all_schema)
 
+def guardrails(prompt): 
+    response = bedrock_client.apply_guardrail(
+        guardrailIdentifier=os.environ.get('GUARDRAILS_ID'), # ex: '453cg26ykbxy'
+        guardrailVersion='1',
+        source='INPUT', #|'OUTPUT',
+        content=[
+            {
+                'text': {
+                    'text': prompt,
+                    # 'qualifiers': [
+                    #     'grounding_source'|'query'|'guard_content',
+                    # ]
+                }
+            },
+        ]
+    )
+    # print(response)
+    return response 
+    
 
 def router(user_query):
+    # apply guardrails 
+    guard = guardrails(user_query)
+    if guard['action'] == 'GUARDRAIL_INTERVENED':
+        print("Guardrails blocked this action")
+        print(guard["assessments"])
+        return 
+
     messages = [{"role": "user", "content": [{"text": user_query}]}]
 
     system_prompt=f"""
@@ -127,7 +156,14 @@ def router(user_query):
         "system": [{"text": system_prompt}],
         "messages": messages,
         "inferenceConfig": {"temperature": 0.0, "maxTokens": 1000},
-        "toolConfig": toolConfig
+        "toolConfig": toolConfig,
+        # ERROR: Guardrails cannot be enabled when using tools.
+        # instead use https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock-runtime/client/apply_guardrail.html
+        # "guardrailConfig": {
+        #     "guardrailIdentifier": "xyz",
+        #     "guardrailVersion": "1",
+        #     "trace": "enabled"
+        # }
     }
 
     response = bedrock_client.converse(**converse_api_params)
@@ -146,11 +182,14 @@ def router(user_query):
         
 
 if __name__ == "__main__":
+    # blocked by Guardrails due to animal topic
+    router("where to buy dog?")
+
     # Haiku
     # {'message': {'role': 'assistant', 'content': [{'toolUse': {'toolUseId': 'tooluse_xyz', 'name': 'provider_scam_detection', 'input': {'query': "Congratulation, you've won $10M, give me your bank info."}}}]}}
     # {'inputTokens': 841, 'outputTokens': 56, 'totalTokens': 897}
-    # {'latencyMs': 889}
-    router("Is this a scam? Congratulation, you've won $10M, give me your bank info.")
+    # {'latencyMs': 889}    
+    # router("Is this a scam? Congratulation, you've won $10M, give me your bank info.")
 
     # Haiku
     # {'message': {'role': 'assistant', 'content': [{'toolUse': {'toolUseId': 'tooluse_xyz', 'name': 'provider_product_question', 'input': {'query': 'what product can help me with scam protection?'}}}]}}

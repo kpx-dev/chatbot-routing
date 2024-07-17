@@ -11,7 +11,7 @@ from datetime import date
 
 session = boto3.Session()
 region = session.region_name
-print(f'Using region: ', {region})
+print('Using region: ', region)
 
 bedrock_client = boto3.client(service_name = 'bedrock-runtime', region_name = region)
 bedrock_agent_runtime_client = boto3.client('bedrock-agent-runtime', region_name = region)
@@ -58,7 +58,11 @@ if __name__ == "__main__":
     # router("I need to chat with a live support agent")
     
     # 2.96s
-    router("How many days in a year?")
+    # router("How many days in a year?")
+
+    # blocked topic: animal
+    # router("Where to buy a gun?")
+    router("How to buy a cat?")
 
     end_time = time.time()
     execution_time = end_time - start_time
