@@ -30,16 +30,6 @@ def provider_support_question(query):
 def provider_catch_all(query):
     print(f"Catch-all / fallback provider: {query}")
 
-toolConfig = {'tools': [],
-    "toolChoice": {
-    "any":{},    # must trigger one of the available tools
-    # "auto":{}, # default
-    # "tool":{   # always trigger this tool
-    #     "name": "provider_scam_detection"
-    # },
-    }
-}
-
 provider_scam_detection_schema = {
     "toolSpec": {
         "name": "provider_scam_detection",
@@ -104,10 +94,16 @@ provider_catch_all_schema = {
     }
 }
 
-toolConfig['tools'].append(provider_scam_detection_schema)
-toolConfig['tools'].append(provider_product_question_schema)
-toolConfig['tools'].append(provider_support_question_schema)
-toolConfig['tools'].append(provider_catch_all_schema)
+toolConfig = {
+    "tools": [provider_scam_detection_schema, provider_product_question_schema, provider_support_question_schema, provider_catch_all_schema],
+    "toolChoice": {
+        "any":{},    # must trigger one of the available tools
+        # "auto":{}, # default
+        # "tool":{   # always trigger this tool
+        #     "name": "provider_scam_detection"
+        # },
+    }
+}
 
 def guardrails(prompt): 
     response = bedrock_client.apply_guardrail(
@@ -128,34 +124,26 @@ def guardrails(prompt):
     # print(response)
     return response 
     
-
-def router(user_query):
+def router(user_query, enable_guardrails=False):
     # apply guardrails 
-    guard = guardrails(user_query)
-    if guard['action'] == 'GUARDRAIL_INTERVENED':
-        print("Guardrails blocked this action")
-        print(guard["assessments"])
-        return 
+    if enable_guardrails:
+        guard = guardrails(user_query)
+        if guard['action'] == 'GUARDRAIL_INTERVENED':
+            print("Guardrails blocked this action", guard["assessments"])
+            return
 
     messages = [{"role": "user", "content": [{"text": user_query}]}]
 
     system_prompt=f"""
-    Answer as many questions as you can using your existing knowledge.  
-    Only invoke available tools for queries that you can not confidently answer.    
-
-    You have access to the following 4 tools:
-
-    1. provider_scam_detection: Trigger this tool if you think the query is a scam
-    2. provider_product_question: Trigger this tool if you need to know about a specific product question
-    3. provider_support_question: Trigger this tool if you have support questions
-    4. provider_catch_all: Trigger this tool if none of the above tools are suitable for the query
+        Break down the user questions and match each question to a tool.
+        Always return at least 2 tools.
     """
 
     converse_api_params = {
         "modelId": modelId,
         "system": [{"text": system_prompt}],
         "messages": messages,
-        "inferenceConfig": {"temperature": 0.0, "maxTokens": 1000},
+        "inferenceConfig": {"temperature": 0.0, "maxTokens": 4096},
         "toolConfig": toolConfig,
         # ERROR: Guardrails cannot be enabled when using tools.
         # instead use https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock-runtime/client/apply_guardrail.html
@@ -167,6 +155,7 @@ def router(user_query):
     }
 
     response = bedrock_client.converse(**converse_api_params)
+    # print(response)
 
     stop_reason = response['stopReason']
 
@@ -182,8 +171,12 @@ def router(user_query):
         
 
 if __name__ == "__main__":
+    # example of triggering 2 tools in 1 user prompt: 
+    # output: {'message': {'role': 'assistant', 'content': [{'toolUse': {'toolUseId': 'tooluse_abc', 'name': 'provider_scam_detection', 'input': {'query': 'what product can help me with scam protection'}}}, {'toolUse': {'toolUseId': 'tooluse_cde', 'name': 'provider_support_question', 'input': {'query': 'I need to talk to live human support'}}}]}}
+    router("what product can help me with scam protection and I need to talk to live human support")
+
     # blocked by Guardrails due to animal topic
-    router("where to buy dog?")
+    # router("where to buy dog?", enable_guardrails=True)
 
     # Haiku
     # {'message': {'role': 'assistant', 'content': [{'toolUse': {'toolUseId': 'tooluse_xyz', 'name': 'provider_scam_detection', 'input': {'query': "Congratulation, you've won $10M, give me your bank info."}}}]}}
