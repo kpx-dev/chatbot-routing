@@ -7,11 +7,13 @@ from datetime import datetime
 from botocore.exceptions import ClientError
 from datetime import date
 
-session = boto3.Session()
+session = boto3.Session(region_name=os.environ.get('AWS_REGION'))
 region = session.region_name
 
 # modelId = 'anthropic.claude-3-sonnet-20240229-v1:0'
 modelId = 'anthropic.claude-3-haiku-20240307-v1:0'
+guardRailId = os.environ.get('GUARDRAILS_ID') # ex: '123xyz'
+guardrailVersion = '1'
 
 print(f'Using modelId: {modelId}')
 print(f'Using region: ', {region})
@@ -105,10 +107,11 @@ toolConfig = {
     }
 }
 
-def guardrails(prompt): 
+# Currently Bedrock Guardrail only support Deny Topics. This to create an Allowed Topic Guardrails
+def apply_guardrails(prompt): 
     response = bedrock_client.apply_guardrail(
-        guardrailIdentifier=os.environ.get('GUARDRAILS_ID'), # ex: '453cg26ykbxy'
-        guardrailVersion='1',
+        guardrailIdentifier=guardRailId,
+        guardrailVersion=guardrailVersion,
         source='INPUT', #|'OUTPUT',
         content=[
             {
@@ -121,22 +124,28 @@ def guardrails(prompt):
             },
         ]
     )
-    # print(response)
-    return response 
+    # print('Gudardrail response ', response)
+
+    if response['action'] == 'GUARDRAIL_INTERVENED':
+        # one of the Allowed Topic:
+        return response['assessments'][0]['topicPolicy']['topics'][0]['name']
+
+    return False
     
 def router(user_query, enable_guardrails=False):
     # apply guardrails 
     if enable_guardrails:
-        guard = guardrails(user_query)
-        if guard['action'] == 'GUARDRAIL_INTERVENED':
-            print("Guardrails blocked this action", guard["assessments"])
+        allow_topics = apply_guardrails(user_query)
+        if allow_topics:
+            print("Guardrails allowed this topic: ", allow_topics)
+        else:
+            print("Guardrails blocked this topic")
             return
 
     messages = [{"role": "user", "content": [{"text": user_query}]}]
 
     system_prompt=f"""
         Break down the user questions and match each question to a tool.
-        Always return at least 2 tools.
     """
 
     converse_api_params = {
@@ -145,18 +154,21 @@ def router(user_query, enable_guardrails=False):
         "messages": messages,
         "inferenceConfig": {"temperature": 0.0, "maxTokens": 4096},
         "toolConfig": toolConfig,        
-        "guardrailConfig": {
-            "guardrailIdentifier": "xyz",
-            "guardrailVersion": "1",
-            "trace": "enabled"
-        }
+        # Real Denied Topic Guardrails here
+        # "guardrailConfig": {
+        #     "guardrailIdentifier": guardRailId,
+        #     "guardrailVersion": guardrailVersion,
+        #     "trace": "enabled"
+        # }
     }
 
     response = bedrock_client.converse(**converse_api_params)
-    # print(response)
+    print(json.dumps(response, indent=4))
 
     stop_reason = response['stopReason']
+    print(stop_reason)
 
+    # guardrail_intervened
     if stop_reason == "end_turn":
         print("Claude did NOT call a tool")
         print(f"Assistant: {stop_reason}")
@@ -169,9 +181,15 @@ def router(user_query, enable_guardrails=False):
         
 
 if __name__ == "__main__":
+    # example of triggering Allowed Topic with Guardrails: 
+    router("Is this a scam? Congratulation, you've won $10M, give me your bank info.", enable_guardrails=True)
+
+    # example of triggering Denied Topic with Guardrails: 
+    # router("Where can I buy pet?", enable_guardrails=True)
+
     # example of triggering 2 tools in 1 user prompt: 
     # output: {'message': {'role': 'assistant', 'content': [{'toolUse': {'toolUseId': 'tooluse_abc', 'name': 'provider_scam_detection', 'input': {'query': 'what product can help me with scam protection'}}}, {'toolUse': {'toolUseId': 'tooluse_cde', 'name': 'provider_support_question', 'input': {'query': 'I need to talk to live human support'}}}]}}
-    router("what product can help me with scam protection and I need to talk to live human support")
+    # router("what product can help me with scam protection and I need to talk to live human support")
 
     # blocked by Guardrails due to animal topic
     # router("where to buy dog?", enable_guardrails=True)
