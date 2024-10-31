@@ -144,14 +144,12 @@ def router(user_query, enable_guardrails=False):
         "system": [{"text": system_prompt}],
         "messages": messages,
         "inferenceConfig": {"temperature": 0.0, "maxTokens": 4096},
-        "toolConfig": toolConfig,
-        # ERROR: Guardrails cannot be enabled when using tools.
-        # instead use https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/bedrock-runtime/client/apply_guardrail.html
-        # "guardrailConfig": {
-        #     "guardrailIdentifier": "xyz",
-        #     "guardrailVersion": "1",
-        #     "trace": "enabled"
-        # }
+        "toolConfig": toolConfig,        
+        "guardrailConfig": {
+            "guardrailIdentifier": "xyz",
+            "guardrailVersion": "1",
+            "trace": "enabled"
+        }
     }
 
     response = bedrock_client.converse(**converse_api_params)
